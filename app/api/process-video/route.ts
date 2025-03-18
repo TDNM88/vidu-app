@@ -1,61 +1,64 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    // Lấy dữ liệu từ request body
+    const { images, prompt, duration, seed, aspect_ratio, resolution, movement_amplitude } = await request.json()
 
-    const mainCharacter = formData.get("mainCharacter") as File
-    const background = formData.get("background") as File
-    const optionalImage = formData.get("optionalImage") as File | null
-    const prompt = formData.get("prompt") as string
-    const aspectRatio = formData.get("aspectRatio") as string
-    const resolution = formData.get("resolution") as string
-
-    if (!mainCharacter || !background) {
-      return NextResponse.json({ error: "Thiếu ảnh nhân vật chính hoặc bối cảnh" }, { status: 400 })
+    // Validate required fields
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return NextResponse.json({ error: 'Thiếu hoặc images không hợp lệ' }, { status: 400 })
     }
 
-    // Create a new FormData object to send to the Vidu API
-    const apiFormData = new FormData()
-    apiFormData.append("mainCharacter", mainCharacter)
-    apiFormData.append("background", background)
-
-    if (optionalImage) {
-      apiFormData.append("optionalImage", optionalImage)
+    if (!prompt) {
+      return NextResponse.json({ error: 'Thiếu prompt' }, { status: 400 })
     }
 
-    // Thêm các tham số bắt buộc
-    apiFormData.append("prompt", prompt)
-    apiFormData.append("aspectRatio", aspectRatio)
-    apiFormData.append("resolution", resolution)
-    apiFormData.append("duration", "4")
-    apiFormData.append("model", "vidu-2.0")
+    // Chuẩn bị request body theo mẫu API
+    const requestBody = {
+      model: "vidu2.0",
+      images,
+      prompt,
+      duration: duration || "4",
+      seed: seed || "0",
+      aspect_ratio: aspect_ratio || "16:9",
+      resolution: resolution || "720p",
+      movement_amplitude: movement_amplitude || "auto"
+    }
 
     // Gọi API Vidu
-    const response = await fetch("https://api.vidu.com/v1/videos", {
-      method: "POST",
+    const response = await fetch('https://api.vidu.com/ent/v2/reference2video', {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.VIDU_API_KEY}`,
-        "Content-Type": "multipart/form-data",
+        'Authorization': `Token ${process.env.VIDU_API_KEY}`,
+        'Content-Type': 'application/json',
       },
-      body: apiFormData,
+      body: JSON.stringify(requestBody),
     })
 
+    // Xử lý response
     if (!response.ok) {
       const errorData = await response.json()
-      return NextResponse.json({ error: errorData.message || "Không thể tạo video" }, { status: response.status })
+      return NextResponse.json({ 
+        error: errorData.message || 'Lỗi khi tạo video',
+        status: response.status
+      })
     }
 
-    const data = await response.json()
+    const responseData = await response.json()
 
     return NextResponse.json({
       success: true,
-      videoId: data.videoId,
-      message: "Đã bắt đầu xử lý video",
+      data: responseData,
+      message: 'Tạo video thành công',
     })
+
   } catch (error: any) {
-    console.error("Error processing video:", error)
-    return NextResponse.json({ error: "Đã xảy ra lỗi khi xử lý video" }, { status: 500 })
+    console.error('Error generating video:', error)
+    return NextResponse.json({ 
+      error: 'Đã xảy ra lỗi khi tạo video',
+      details: error.message 
+    }, { status: 500 })
   }
 }
 
