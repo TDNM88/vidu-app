@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
+  // Xử lý OPTIONS request cho CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    })
+  }
+
   try {
     // Lấy dữ liệu từ request body
     const { images, prompt, duration, seed, aspect_ratio, resolution, movement_amplitude } = await request.json()
@@ -51,6 +62,11 @@ export async function POST(request: Request) {
       success: true,
       data: responseData,
       message: 'Tạo video thành công',
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+      }
     })
 
   } catch (error: any) {
@@ -58,7 +74,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       error: 'Đã xảy ra lỗi khi tạo video',
       details: error.message 
-    }, { status: 500 })
+    }, {
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+      }
+    })
   }
 }
 
